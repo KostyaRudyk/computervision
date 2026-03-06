@@ -54,4 +54,5 @@ for file in files:
     if img is None:
         continue
     output_path = os.path.join(output_folder, file)
-    cv2.imwrite(output_path, img)
+
+    cv2.imwrite(output_path, frame)
