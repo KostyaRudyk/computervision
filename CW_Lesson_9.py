@@ -1,58 +1,36 @@
 import cv2
-import numpy as np
-import os
 
-eye_cascade = cv2.CascadeClassifier('data/haarcascades/haarcascade_eye.xml')
-dnn = cv2.dnn.readNetFromCaffe('dnl/deploy.prototxt', 'dnl/res10_300x300_ssd_iter_140000.caffemodel')
+net = cv2.dnn.readNetFromCaffe('data/mobilenet/mobilenet_deploy.prototxt', 'data/mobilenet/mobilenet.caffemodel')
+classes = []
 
-frame = cv2.imread('image/smith1.png')
+with open("data/mobilenet/synset.txt", 'r', encoding='utf-8'  ) as f:#відкриваємо тхт файл
+    for line in f:
+        line = line.strip()#видаляємо пробіли
+        if not line:
+            continue
 
-(h, w) = frame.shape[:2]
-blob = cv2.dnn.blobFromImage(frame, 1.0, (300, 300), (104.0, 177.0, 123.0))
-dnn.setInput(blob)
-detections = dnn.forward()
-
-for i in range(detections.shape[2]):
-    confidence = detections[0, 0, i, 2]
-
-    if confidence > 0.5:
-        box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
-        (x, y, y2, x2) = box.astype("int")
-        x, y = max(0, x), max(0, y)
-        x2, y2 = min(w - 1, x2), min(h - 1, y2)
-
-        cv2.rectangle(frame, (x, y), (x2, y2), (0, 255, 0), 2)
-
-gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-eyes = eye_cascade.detectMultiScale(frame, scaleFactor=1.1 ,minNeighbors=10, minSize=(10, 10))
-for (x, y, w, h) in eyes:
-    for(x, y, w, h) in eyes:
-        cv2.rectangle(frame, (x,y), (x+w, y+h), (255 ,0, 0 ), 1)
+        parts = line.split(' ', 1)
+        name = parts[1] if len(parts) > 1 else parts[0]
+        classes.append(name)
 
 
+image = cv2.imread('image/women.jpg')
+blob = cv2.dnn.blobFromImage(cv2.resize(image,(224, 224)), 1.0 / 127.5,(224, 224), (127.5, 127.5, 127.5))
 
-cv2.imshow('jef', frame)
+
+net.setInput(blob)
+preds = net.forward()# предс це імоворінсність а сет інпун це команда яка запускає пронаяє типу
+
+index = preds[0].argmax()
+
+label = classes[index] if index < len(classes) else "unknown"
+conf = float(preds[0][index]) *100
+print(f'Клас: {label}')
+print(f'ймовірність: {round(conf, 2)}%')
+
+text = label + ": "+ str(int(conf)) + "%"
+cv2.putText(image, text, (10,30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
+
+cv2.imshow('result', image)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
-cv2.imwrite('output/result.png', frame)
-
-input_folder = "image"
-output_folder = "output"
-
-formats = ('.jpg', '.jpeg', '.png', 'webp')
-
-os.makedirs(output_folder, exist_ok=True)
-files = sorted(os.listdir(input_folder))
-
-
-for file in files:
-    if not file.lower().endswith(formats):
-        continue
-
-    path = os.path.join(input_folder, file)
-    img = cv2.imread(path)
-    if img is None:
-        continue
-    output_path = os.path.join(output_folder, file)
-
-    cv2.imwrite(output_path, frame)
